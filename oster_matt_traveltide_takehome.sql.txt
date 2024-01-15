@@ -1,0 +1,151 @@
+— 1.a
+WITH UserAgeBucket AS (
+    SELECT
+        user_id,
+        gender,
+        FLOOR(EXTRACT(YEAR FROM AGE(CURRENT_DATE, birthdate)) / 10) * 10 AS age_bucket
+    FROM
+        users
+)
+SELECT
+    gender,
+    age_bucket,
+    COUNT(DISTINCT flights.trip_id) AS num_flights
+FROM
+    UserAgeBucket
+JOIN sessions ON UserAgeBucket.user_id = sessions.user_id
+JOIN flights ON sessions.trip_id = flights.trip_id
+GROUP BY
+    gender,
+    age_bucket
+ORDER BY
+    num_flights DESC;
+
+/* 1.a
+
+"gender"	"age_bucket"	"num_flights"
+"M"	"40"	"355168"
+"F"	"40"	"321719"
+"M"	"30"	"299061"
+"F"	"30"	"269031"
+"M"	"50"	"180807"
+"F"	"50"	"162717"
+"M"	"20"	"103704"
+"F"	"20"	"91890"
+"M"	"60"	"24025"
+"M"	"10"	"23980"
+"F"	"10"	"21369"
+"F"	"60"	"20733"
+"M"	"70"	"5521"
+"O"	"40"	"5342"
+"F"	"70"	"4962"
+"O"	"30"	"4525"
+"O"	"50"	"2786"
+"O"	"20"	"1533"
+"M"	"80"	"718"
+"F"	"80"	"639"
+"O"	"60"	"360"
+"O"	"10"	"326"
+"O"	"70"	"95"
+"O"	"80"	"16"
+"M"	"90"	"8"
+"F"	"90"	"3"
+
+*/
+
+—- 1.b
+
+SELECT
+    married,
+    has_children,
+    COUNT(DISTINCT flights.trip_id) AS num_flights
+FROM
+    users
+LEFT JOIN sessions ON users.user_id = sessions.user_id
+LEFT JOIN flights ON sessions.trip_id = flights.trip_id
+WHERE
+    married IS NOT NULL
+    AND has_children IS NOT NULL
+GROUP BY
+    married,
+    has_children
+ORDER BY
+    num_flights DESC;
+
+
+/* 1.b
+
+"married"	"has_children"	"num_flights"
+"false"	"false"	"883001"
+"true"	"false"	"447834"
+"false"	"true"	"285267"
+"true"	"true"	"284936"
+
+From the past two queries we see that overwhelmingly single men and women with out children from 40-49 years old take the most flights through this travel company.
+
+*/
+
+-- 2.a
+
+SELECT
+    ROUND((COUNT(CASE WHEN trip_id IS NULL THEN 1 END)
+    * 100.0 / COUNT(session_id)),2) AS abandonment_percentage
+FROM
+    sessions;
+
+/* 2.a
+
+"abandonment_percentage"
+"56.81"
+
+*/
+ 
+—-2.b
+
+SELECT
+    U.gender,
+    U.married,
+    U.has_children,
+    FLOOR(EXTRACT(YEAR FROM AGE(CURRENT_DATE, U.birthdate)) / 10) * 10 AS age_bucket,
+    (COUNT(CASE WHEN S.trip_id IS NULL THEN 1 END) * 100.0 / COUNT(S.session_id)) AS abandonment_percentage
+FROM
+    users U
+LEFT JOIN sessions S ON U.user_id = S.user_id
+WHERE
+    EXTRACT(YEAR FROM AGE(CURRENT_DATE, U.birthdate)) BETWEEN 20 AND 59
+GROUP BY
+    U.gender,
+    U.married,
+    U.has_children,
+    age_bucket
+HAVING
+    FLOOR(EXTRACT(YEAR FROM AGE(CURRENT_DATE, U.birthdate)) / 10) * 10 BETWEEN 20 AND 59
+ORDER BY
+    abandonment_percentage DESC;
+
+
+-- 3.a
+
+SELECT
+    U.home_city,
+    COUNT(DISTINCT F.trip_id) AS num_flights
+FROM
+    users U
+LEFT JOIN sessions S ON U.user_id = S.user_id
+LEFT JOIN flights F ON S.trip_id = F.trip_id
+GROUP BY
+    U.home_city
+ORDER BY
+    num_flights DESC
+    LIMIT 15;
+
+
+-- 4.a
+
+/* 4.a
+
+The lion’s share of travel is done by single people without children in their 30-40s who call major cities home.  Age and cities seem to be the biggest drivers for volume of travel as well as activity on the website.
+
+Areas I would focus attention on for higher sales would be 20-29yo and 50-59yo customers in larger markets.  20-29yo inparticular have the largest abandonment online.  I would think about ways to keep them engaged with the website, possibly highlight more last minute deals.  These are the two places I would start to implement change, .  
+
+*/
